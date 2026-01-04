@@ -22,6 +22,35 @@ local MAX_OFFLINE_HOURS = MAX_OFFLINE_DAYS * 24
 local pendingAction = nil
 local lastRosterUpdate = 0
 
+local function GetShowOfflineSetting()
+    if GetGuildRosterShowOffline then
+        return GetGuildRosterShowOffline()
+    end
+    if GuildRosterShowOfflineButton and GuildRosterShowOfflineButton.GetChecked then
+        return GuildRosterShowOfflineButton:GetChecked()
+    end
+    return nil
+end
+
+local function RestoreShowOfflineSetting(value)
+    if value == nil then
+        return
+    end
+    local current = GetShowOfflineSetting()
+    if current ~= nil and current == value then
+        return
+    end
+    if SetGuildRosterShowOffline then
+        SetGuildRosterShowOffline(value)
+    end
+    if GuildRosterShowOfflineButton and GuildRosterShowOfflineButton.SetChecked then
+        GuildRosterShowOfflineButton:SetChecked(value)
+        if GuildRoster then
+            GuildRoster()
+        end
+    end
+end
+
 -- Calculate total hours offline from years, months, days, hours
 local function CalculateOfflineHours(years, months, days, hours)
     years = years or 0
@@ -97,10 +126,7 @@ local function GetEligibleMembers()
     local eligible = {}
 
     -- Preserve the user's roster setting, then include offline members for this scan.
-    local showOfflineSetting = nil
-    if GetGuildRosterShowOffline then
-        showOfflineSetting = GetGuildRosterShowOffline()
-    end
+    local showOfflineSetting = GetShowOfflineSetting()
     if SetGuildRosterShowOffline then
         SetGuildRosterShowOffline(true)
     end
@@ -114,9 +140,7 @@ local function GetEligibleMembers()
         end
     end
 
-    if showOfflineSetting ~= nil and SetGuildRosterShowOffline then
-        SetGuildRosterShowOffline(showOfflineSetting)
-    end
+    RestoreShowOfflineSetting(showOfflineSetting)
 
     return eligible
 end
@@ -124,14 +148,14 @@ end
 -- Pick a random eligible member
 local function PickRandomMember()
     if not IsInGuild() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r You are not in a guild!")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r You are not in a guild!")
         return nil
     end
 
     local eligible = GetEligibleMembers()
 
     if table.getn(eligible) == 0 then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r No eligible guild members found (online within " .. MAX_OFFLINE_DAYS .. " days).")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r No eligible guild members found (online within " .. MAX_OFFLINE_DAYS .. " days).")
         return nil
     end
 
@@ -161,7 +185,7 @@ local function DoRandomPick()
     local member = PickRandomMember()
 
     if member then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Selected: |cFFFFD700" .. member.name .. "|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFFWinner Winner Chicken Dinner:|r |cFFFFD700" .. member.name .. "!|r")
         DEFAULT_CHAT_FRAME:AddMessage("  " .. FormatMemberInfo(member))
     end
 
@@ -171,18 +195,18 @@ end
 -- List all eligible members
 local function ListEligibleMembers()
     if not IsInGuild() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r You are not in a guild!")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r You are not in a guild!")
         return
     end
 
     local eligible = GetEligibleMembers()
 
     if table.getn(eligible) == 0 then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r No eligible guild members found.")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r No eligible guild members found.")
         return
     end
 
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Eligible members (online within " .. MAX_OFFLINE_DAYS .. " days): " .. table.getn(eligible))
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r Eligible members (online within " .. MAX_OFFLINE_DAYS .. " days): " .. table.getn(eligible))
 
     -- Sort by online status, then by name
     table.sort(eligible, function(a, b)
@@ -203,7 +227,7 @@ local function ExecuteAction(action)
     elseif action == "list" then
         ListEligibleMembers()
     elseif action == "refresh" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Guild roster updated.")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r Guild roster updated.")
     end
 end
 
@@ -211,7 +235,7 @@ local function RefreshRoster(action)
     if action == "refresh" or time() - lastRosterUpdate > 60 then
         pendingAction = action
         GuildRoster()
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Refreshing guild roster...")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner:|r Refreshing guild roster...")
         return
     end
 
@@ -226,12 +250,16 @@ local function SlashCmdHandler(msg)
         msg = string.lower(msg)
     end
 
+    if msg == "" then
+        msg = "pick"
+    end
+
     if msg ~= "list" and msg ~= "refresh" and msg ~= "pick" then
         msg = "help"
     end
 
     if msg == "help" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector Usage:|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner Usage:|r")
         DEFAULT_CHAT_FRAME:AddMessage("  /chd - Pick a random guild member")
         DEFAULT_CHAT_FRAME:AddMessage("  /chd list - List all eligible members")
         DEFAULT_CHAT_FRAME:AddMessage("  /chd refresh - Force refresh roster")
@@ -251,7 +279,7 @@ local function OnEvent()
         SLASH_WINNERWINNERCHICKENDINNER17012 = "/gpick"
         SlashCmdList["WINNERWINNERCHICKENDINNER1701"] = SlashCmdHandler
 
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector|r loaded. Use /chd to select a random guild member.")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_WinnerWinnerChickenDinner|r loaded. Use /chd to select a random guild member.")
 
     elseif event == "GUILD_ROSTER_UPDATE" then
         lastRosterUpdate = time()
