@@ -1,10 +1,10 @@
 --[[
-    GuildMemberSelector - Random Guild Member Picker for WoW 1.12
+    Winner Winner Chicken Dinner - Random Guild Member Picker for WoW 1.12
 
     Usage:
-        /guildpick           - Pick a random guild member (online within 5 days)
-        /guildpick list      - List all eligible members
-        /guildpick refresh   - Force refresh the guild roster
+        /chd           - Pick a random guild member (online within 5 days)
+        /chd list      - List all eligible members
+        /chd refresh   - Force refresh the guild roster
 
     Notes:
         - Only selects members who have been online within the last 5 days
@@ -12,7 +12,7 @@
         - Requires you to be in a guild
 ]]
 
-GuildMemberSelector1701 = {}
+WinnerWinnerChickenDinner1701 = {}
 
 -- Configuration
 local MAX_OFFLINE_DAYS = 5
@@ -96,8 +96,14 @@ end
 local function GetEligibleMembers()
     local eligible = {}
 
-    -- Make sure offline members are shown in the roster
-    SetGuildRosterShowOffline(true)
+    -- Preserve the user's roster setting, then include offline members for this scan.
+    local showOfflineSetting = nil
+    if GetGuildRosterShowOffline then
+        showOfflineSetting = GetGuildRosterShowOffline()
+    end
+    if SetGuildRosterShowOffline then
+        SetGuildRosterShowOffline(true)
+    end
 
     local numMembers = GetNumGuildMembers()
 
@@ -106,6 +112,10 @@ local function GetEligibleMembers()
         if isEligible and memberInfo then
             table.insert(eligible, memberInfo)
         end
+    end
+
+    if showOfflineSetting ~= nil and SetGuildRosterShowOffline then
+        SetGuildRosterShowOffline(showOfflineSetting)
     end
 
     return eligible
@@ -187,10 +197,25 @@ local function ListEligibleMembers()
 end
 
 -- Request guild roster update and execute pending action
+local function ExecuteAction(action)
+    if action == "pick" then
+        DoRandomPick()
+    elseif action == "list" then
+        ListEligibleMembers()
+    elseif action == "refresh" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Guild roster updated.")
+    end
+end
+
 local function RefreshRoster(action)
-    pendingAction = action
-    GuildRoster()
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Refreshing guild roster...")
+    if action == "refresh" or time() - lastRosterUpdate > 60 then
+        pendingAction = action
+        GuildRoster()
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Refreshing guild roster...")
+        return
+    end
+
+    ExecuteAction(action)
 end
 
 -- Slash command handler
@@ -201,52 +226,37 @@ local function SlashCmdHandler(msg)
         msg = string.lower(msg)
     end
 
-    if msg == "list" then
-        -- Check if roster is fresh enough (within 60 seconds)
-        if time() - lastRosterUpdate > 60 then
-            RefreshRoster("list")
-        else
-            ListEligibleMembers()
-        end
-    elseif msg == "refresh" then
-        RefreshRoster(nil)
-    elseif msg == "help" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector Usage:|r")
-        DEFAULT_CHAT_FRAME:AddMessage("  /guildpick - Pick a random guild member")
-        DEFAULT_CHAT_FRAME:AddMessage("  /guildpick list - List all eligible members")
-        DEFAULT_CHAT_FRAME:AddMessage("  /guildpick refresh - Force refresh roster")
-        DEFAULT_CHAT_FRAME:AddMessage("  Eligible: online within last " .. MAX_OFFLINE_DAYS .. " days")
-    else
-        -- Default action: pick random member
-        if time() - lastRosterUpdate > 60 then
-            RefreshRoster("pick")
-        else
-            DoRandomPick()
-        end
+    if msg ~= "list" and msg ~= "refresh" and msg ~= "pick" then
+        msg = "help"
     end
+
+    if msg == "help" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector Usage:|r")
+        DEFAULT_CHAT_FRAME:AddMessage("  /chd - Pick a random guild member")
+        DEFAULT_CHAT_FRAME:AddMessage("  /chd list - List all eligible members")
+        DEFAULT_CHAT_FRAME:AddMessage("  /chd refresh - Force refresh roster")
+        DEFAULT_CHAT_FRAME:AddMessage("  Eligible: online within last " .. MAX_OFFLINE_DAYS .. " days")
+        return
+    end
+
+    RefreshRoster(msg)
 end
 
 -- Event handler
 local function OnEvent()
     if event == "VARIABLES_LOADED" then
         -- Register slash commands
-        SLASH_GUILDMEMBERSELECTOR17011 = "/guildpick"
-        SLASH_GUILDMEMBERSELECTOR17012 = "/gpick"
-        SlashCmdList["GUILDMEMBERSELECTOR1701"] = SlashCmdHandler
+        SLASH_WINNERWINNERCHICKENDINNER17011 = "/chd"
+        SLASH_WINNERWINNERCHICKENDINNER17012 = "/chickendinner"
+        SLASH_WINNERWINNERCHICKENDINNER17012 = "/gpick"
+        SlashCmdList["WINNERWINNERCHICKENDINNER1701"] = SlashCmdHandler
 
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector|r loaded. Use /guildpick to select a random guild member.")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector|r loaded. Use /chd to select a random guild member.")
 
     elseif event == "GUILD_ROSTER_UPDATE" then
         lastRosterUpdate = time()
 
-        -- Execute any pending action
-        if pendingAction == "pick" then
-            DoRandomPick()
-        elseif pendingAction == "list" then
-            ListEligibleMembers()
-        elseif pendingAction == nil then
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_GuildMemberSelector:|r Guild roster updated.")
-        end
+        ExecuteAction(pendingAction)
         pendingAction = nil
     end
 end
@@ -258,7 +268,7 @@ frame:RegisterEvent("GUILD_ROSTER_UPDATE")
 frame:SetScript("OnEvent", OnEvent)
 
 -- Export for external use
-GuildMemberSelector1701.PickRandomMember = PickRandomMember
-GuildMemberSelector1701.GetEligibleMembers = GetEligibleMembers
-GuildMemberSelector1701.ListEligibleMembers = ListEligibleMembers
-GuildMemberSelector1701.DoRandomPick = DoRandomPick
+WinnerWinnerChickenDinner1701.PickRandomMember = PickRandomMember
+WinnerWinnerChickenDinner1701.GetEligibleMembers = GetEligibleMembers
+WinnerWinnerChickenDinner1701.ListEligibleMembers = ListEligibleMembers
+WinnerWinnerChickenDinner1701.DoRandomPick = DoRandomPick
